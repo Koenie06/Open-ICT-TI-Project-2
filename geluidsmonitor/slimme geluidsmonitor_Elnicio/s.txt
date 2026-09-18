@@ -1,0 +1,90 @@
+#include <Arduino.h>
+
+//serial monitor is voor debuggen, zodat je kan zien wat er gebeurt in de code.
+//er moeten 3 lampjes zijn, rood, geel en groen. Deze lampjes moeten op de juiste manier aan en uit gaan afhankelijk van de geluidsniveaus die worden gemeten door de geluidsmonitor.
+// De geluidsniveaus worden gemeten door een microfoon die is aangesloten op de geluidsmonitor.
+//bij een te luide omgeving voor een langere tijd gaat de active buzzer af en gaat het rode lampje aan. Bij een normale omgeving gaat het groene lampje aan. Bij een iets te luide omgeving gaat het gele lampje aan.
+//het rode lampje moet 5 seconden lang branden voordat de buzzer afgaat.
+
+// pin nummer voor de LEDjes, buzzer en microphone
+const int greenLedPin = 2;    // Pin for green LED
+const int yellowLedPin = 3;   // Pin for yellow LED
+const int redLedPin = 4;      // Pin for red LED
+const int buzzerPin = 5;      // Pin for buzzer
+const int micPin = A0;        // Pin for microphone
+
+//variables voor de threshold
+const int redThreshold = 10000;    // Threshold voor rode LED
+const int yellowThreshold = 400; // Threshold voor gele LED
+const unsigned long loudDuration = 5000; // tijd voordat de buzzer aangaat
+
+unsigned long loudSince = 0; // variable die meet hoelang het geluid te luid is
+bool wasLoud = false; //variable om te kijken of het te luid is
+
+// functie die het GEMIDDELDE geluidsniveau meet over 50ms
+// gemiddelde ipv piek, zodat korte geluidspieken minder invloed hebben
+// en het niveau beter het algehele geluid in het lokaal weerspiegelt
+int getAverageSoundLevel() {
+  long total = 0;      // long, want de som kan groter worden dan een int aankan
+  int samples = 0;
+  unsigned long startTime = millis();
+
+  while (millis() - startTime < 50) { // meet voor 50 millisecondes
+    total += analogRead(micPin);
+    samples++;
+  }
+
+  return total / samples; // gemiddelde van alle metingen
+}
+
+//begin waardes
+void setup() {
+  // put your setup code here, to run once:
+  pinMode(greenLedPin, OUTPUT);
+  pinMode(yellowLedPin, OUTPUT);
+  pinMode(redLedPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(micPin, INPUT);
+  Serial.begin(9600); //debug methode via de terminal
+}
+
+
+void loop() {
+  
+  // put your main code here, to run repeatedly:
+  int soundLevel = getAverageSoundLevel(); //leest het gemiddelde geluidsniveau
+  Serial.println(soundLevel); //print de microphone waardes naar de terminal, serial
+
+  //standaard staat alles uit
+  digitalWrite(greenLedPin, LOW);
+  digitalWrite(yellowLedPin, LOW);
+  digitalWrite(redLedPin, LOW);
+  digitalWrite(buzzerPin, LOW);
+
+  //Als het geluid hoger is dan rode threshold, rode lamp gaat aan, dan start de tijd en wanneer 5 secondes
+  //zijn verstreken. dan gaat de buzzer aan
+  if (soundLevel > redThreshold) {
+    digitalWrite(redLedPin, HIGH);
+
+    if (!wasLoud) {
+      wasLoud = true;
+      loudSince = millis(); //start de klok
+    }
+
+    if (millis() - loudSince >= loudDuration) {
+      digitalWrite(buzzerPin, HIGH); //pas na 5 sec luid
+    }
+  }
+
+  //Anders als het geluid hoger is dan gele threshold, dan gaat de gele lamp aan
+  else if (soundLevel > yellowThreshold) {
+    digitalWrite(yellowLedPin, HIGH);
+    wasLoud = false; //timer resetten
+  }
+
+  //Anders bij rust, gaat de groene lamp aan
+  else {
+    digitalWrite(greenLedPin, HIGH);
+    wasLoud = false; //timer resetten
+  }
+}
