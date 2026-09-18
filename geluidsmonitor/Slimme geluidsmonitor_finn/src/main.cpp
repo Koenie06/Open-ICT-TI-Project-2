@@ -3,78 +3,77 @@
 int overlast = 0;
 int kalmte = 0;
 
+const int SENSOR_PIN = A0; // Pin for the sound sensor (Analog pin A0)
+const int PIN_QUIET = 2;   // Pin for "Quiet" level output
+const int PIN_MODERATE = 3; // Pin for "Moderate" level output
+const int PIN_LOUD = 4;    // Pin for "Loud" level output
+const int PIN_ALARM = 5; //alarm bij te loud
+
+const int sampleWindow = 50; // Sample window size in milliseconds (50 ms = 20 Hz)
+unsigned int sample;
+
 void setup() {
   // put your setup code here, to run once:
-  pinMode(2, OUTPUT);
-  pinMode(3, OUTPUT);
-  pinMode(4, OUTPUT);
-  pinMode(5, OUTPUT);
-  Serial.begin(9600);
+  Serial.begin(9600); // Start serial communication for debugging
+
+  pinMode(SENSOR_PIN, INPUT); // Set the sound sensor pin as an input
+  pinMode(PIN_QUIET, OUTPUT);  // Set the pins for sound level indicators as output
+  pinMode(PIN_MODERATE, OUTPUT);
+  pinMode(PIN_LOUD, OUTPUT);
+  pinMode(PIN_ALARM,OUTPUT);
+  
+  // Set the sound level output pins to LOW initially
+  digitalWrite(PIN_QUIET, LOW);
+  digitalWrite(PIN_MODERATE, LOW);
+  digitalWrite(PIN_LOUD, LOW);
+  digitalWrite(PIN_ALARM,LOW);
+  
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  int analogValue = analogRead(0); // Measure the audio sensor input
-  long sum = 0;
-  const int samples = 200;
 
-  // Find average (DC level)
-  for (int i = 0; i < samples; i++) {
-    sum += analogRead(0);
+  unsigned long startMillis = millis(); // Start timing for the sample window
+  float peakToPeak = 0;  // Variable to store the peak-to-peak value
+  unsigned int signalMax = 0; // Maximum signal value during the window
+  unsigned int signalMin = 1024; // Minimum signal value during the window
+  
+  // Collect data for the duration of the sample window (50 ms)
+  while (millis() - startMillis < sampleWindow) {
+    sample = analogRead(SENSOR_PIN); // Read the value from the sound sensor
+
+    // Filter out invalid values
+    if (sample < 1024) {
+      if (sample > signalMax) {
+        signalMax = sample; // Update the maximum value
+      } else if (sample < signalMin) {
+        signalMin = sample; // Update the minimum value
+      }
+    }
   }
 
-  float average = sum / (float)samples;
+  peakToPeak = signalMax - signalMin; // Calculate the peak-to-peak amplitude
+  int db = map(peakToPeak, 20, 750, 49.5, 90); // Map the amplitude to decibels (dB)
+  
 
-  // Calculate signal amplitude
-  long sumSquares = 0;
-
-  for (int i = 0; i < samples; i++) {
-    float x = analogRead(0) - average;
-    sumSquares += x * x;
+  // Set the output level based on the dB value
+  if (db <= 60) {
+    digitalWrite(PIN_QUIET, HIGH); // Activate Quiet level
+    digitalWrite(PIN_MODERATE, LOW); // Deactivate Moderate level
+    digitalWrite(PIN_LOUD, LOW);    // Deactivate Loud level
+  } else if (db > 60 && db < 85) {
+    digitalWrite(PIN_QUIET, LOW);   // Deactivate Quiet level
+    digitalWrite(PIN_MODERATE, HIGH); // Activate Moderate level
+    digitalWrite(PIN_LOUD, LOW);    // Deactivate Loud level
+  } else if (db >= 85) {
+    digitalWrite(PIN_ALARM, HIGH);
+    digitalWrite(PIN_QUIET, LOW);   // Deactivate Quiet level
+    digitalWrite(PIN_MODERATE, LOW); // Deactivate Moderate level
+    digitalWrite(PIN_LOUD, HIGH);   // Activate Loud level
   }
 
-  float rms = sqrt(sumSquares / (float)samples);
+  Serial.println(db);
 
-  Serial.println(rms);
-
-  if ((rms > 2.59) && (kalmte < 1) && (overlast < 12)) {
-    overlast = overlast + 1;
-  }
-  else if ((rms < 2.50) && (overlast > 0)) {
-    overlast = overlast - 1;
-  }
-
-if ((overlast > 9) && (kalmte < 0)) {
-    digitalWrite(2, LOW);
-    digitalWrite(3, LOW);
-    digitalWrite(4, HIGH);
-    digitalWrite(5, HIGH);
-    delay(500);
-    digitalWrite(5, LOW);
-  }
-else if (kalmte < 1) {
-  digitalWrite (2, LOW);
-  digitalWrite(3, HIGH);
-  digitalWrite(4, LOW);
-  };
-
-if ((rms < 0.1) && (overlast == 0)) {
-    digitalWrite(2, HIGH);
-    digitalWrite(3, LOW);
-    digitalWrite(4, LOW);
-    if(kalmte < 5){
-    kalmte = kalmte + 1;
-    };
-}
-else if (kalmte > -3) {
-    kalmte = kalmte - 1;
-};
-
-if (kalmte > 0) {
-    digitalWrite(2, HIGH);
-    digitalWrite(3, LOW);
-    digitalWrite(4, LOW);
-};
+  delay(500); // Wait for 1.5 seconds before the next reading
 
 /* // Debuging (optional)
 Serial.println("Analog:");
@@ -85,5 +84,5 @@ Serial.println("Kalmte:");
 Serial.println(kalmte);
 // End Debug
 */
-delay(50);
+
 }
