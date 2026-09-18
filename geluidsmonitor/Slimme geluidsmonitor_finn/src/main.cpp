@@ -1,42 +1,53 @@
 #include <Arduino.h>
 
+// Pin nummers
+const int greenLedPin = 2;
+const int yellowLedPin = 3;
+const int redLedPin = 4;
+const int buzzerPin = 5;
+const int micPin = A0;
+
+const int samples = 200;
+
 int overlast = 0;
 int kalmte = 0;
 
+// Non-blocking buzzer timer
+unsigned long buzzerStart = 0;
+bool buzzerActive = false;
+const unsigned long buzzerDuration = 500; // hoe lang de buzzer piept
+
 void setup() {
-  // put your setup code here, to run once:
-  pinMode(2, OUTPUT);
-  pinMode(3, OUTPUT);
-  pinMode(4, OUTPUT);
-  pinMode(5, OUTPUT);
+  pinMode(greenLedPin, OUTPUT);
+  pinMode(yellowLedPin, OUTPUT);
+  pinMode(redLedPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
   Serial.begin(9600);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  int analogValue = analogRead(0); // Measure the audio sensor input
+  // Metingen opslaan zodat we niet 2x apart hoeven te samplen
+  int readings[samples];
   long sum = 0;
-  const int samples = 200;
 
-  // Find average (DC level)
   for (int i = 0; i < samples; i++) {
-    sum += analogRead(0);
+    readings[i] = analogRead(micPin);
+    sum += readings[i];
   }
 
   float average = sum / (float)samples;
 
-  // Calculate signal amplitude
+  // RMS berekenen: hoeveel fluctueert het signaal rond zijn eigen gemiddelde
   long sumSquares = 0;
-
   for (int i = 0; i < samples; i++) {
-    float x = analogRead(0) - average;
+    float x = readings[i] - average;
     sumSquares += x * x;
   }
 
   float rms = sqrt(sumSquares / (float)samples);
-
   Serial.println(rms);
 
+  // Overlast-teller: telt op bij hard geluid, telt af bij rustig geluid
   if ((rms > 2.59) && (kalmte < 1) && (overlast < 12)) {
     overlast = overlast + 1;
   }
@@ -44,46 +55,57 @@ void loop() {
     overlast = overlast - 1;
   }
 
-if ((overlast > 9) && (kalmte < 0)) {
-    digitalWrite(2, LOW);
-    digitalWrite(3, LOW);
-    digitalWrite(4, HIGH);
-    digitalWrite(5, HIGH);
-    delay(500);
-    digitalWrite(5, LOW);
+  // TE DRUK: rode + gele LED, buzzer piept kort (non-blocking)
+  if ((overlast > 9) && (kalmte < 0)) {
+    digitalWrite(greenLedPin, LOW);
+    digitalWrite(yellowLedPin, LOW);
+    digitalWrite(redLedPin, HIGH);
+
+    if (!buzzerActive) {
+      digitalWrite(buzzerPin, HIGH);
+      buzzerActive = true;
+      buzzerStart = millis();
+    }
   }
-else if (kalmte < 1) {
-  digitalWrite (2, LOW);
-  digitalWrite(3, HIGH);
-  digitalWrite(4, LOW);
-  };
+  else if (kalmte < 1) {
+    digitalWrite(greenLedPin, LOW);
+    digitalWrite(yellowLedPin, HIGH);
+    digitalWrite(redLedPin, LOW);
+  }
 
-if ((rms < 0.1) && (overlast == 0)) {
-    digitalWrite(2, HIGH);
-    digitalWrite(3, LOW);
-    digitalWrite(4, LOW);
-    if(kalmte < 5){
-    kalmte = kalmte + 1;
-    };
-}
-else if (kalmte > -3) {
+  // Buzzer automatisch uitzetten na buzzerDuration, ongeacht wat de rest van de loop doet
+  if (buzzerActive && millis() - buzzerStart >= buzzerDuration) {
+    digitalWrite(buzzerPin, LOW);
+    buzzerActive = false;
+  }
+
+  // Kalmte-teller: telt op bij stilte, telt af bij niet-stilte
+  if ((rms < 0.1) && (overlast == 0)) {
+    digitalWrite(greenLedPin, HIGH);
+    digitalWrite(yellowLedPin, LOW);
+    digitalWrite(redLedPin, LOW);
+
+    if (kalmte < 5) {
+      kalmte = kalmte + 1;
+    }
+  }
+  else if (kalmte > -3) {
     kalmte = kalmte - 1;
-};
+  }
 
-if (kalmte > 0) {
-    digitalWrite(2, HIGH);
-    digitalWrite(3, LOW);
-    digitalWrite(4, LOW);
-};
+  if (kalmte > 0) {
+    digitalWrite(greenLedPin, HIGH);
+    digitalWrite(yellowLedPin, LOW);
+    digitalWrite(redLedPin, LOW);
+  }
 
-/* // Debuging (optional)
-Serial.println("Analog:");
-Serial.println(analogValue);
-Serial.println("Overlast:");
-Serial.println(overlast);
-Serial.println("Kalmte:");
-Serial.println(kalmte);
-// End Debug
-*/
-delay(50);
+  /* // Debugging (optional)
+  Serial.println("Overlast:");
+  Serial.println(overlast);
+  Serial.println("Kalmte:");
+  Serial.println(kalmte);
+  // End Debug
+  */
+
+  delay(50);
 }
