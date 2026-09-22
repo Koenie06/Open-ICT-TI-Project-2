@@ -22,73 +22,58 @@ byte LEDs6 = 0b10111111;
 byte LEDs7 = 0b11111111; // LED pattern for the highest sound level
 
 void setup() {
-  // Setting the shift register pins as outputs
   pinMode(LatchPin, OUTPUT);
   pinMode(ClockPin, OUTPUT);
   pinMode(DataPin, OUTPUT);
-
-  // Setting the microphone pin as an input
   pinMode(micPin, INPUT);
-  
-  // Starting the serial communication for debugging (optional)
   Serial.begin(9600);
 }
 
 void loop() {
-  // Process microphone data to determine the peak-to-peak value
-  for (int i = 0; i < 100; i++) { // Take 100 samples to find the sound range
-    sample = analogRead(micPin); // Read the current sound level from the microphone
-    if (sample > maxVal) { // Update maxVal if the current sample is greater
-      maxVal = sample;
-    }
-    if (sample < minVal) { // Update minVal if the current sample is lower
-      minVal = sample;
-    }
+  for (int i = 0; i < 100; i++) {
+    sample = analogRead(micPin);
+    if (sample > maxVal) maxVal = sample;
+    if (sample < minVal) minVal = sample;
   }
-  
-  int peakToPeak = maxVal - minVal; // Calculate the peak-to-peak value
 
-  // Convert the peak-to-peak value to a voltage level (0-5V range)
-  float voltage = (peakToPeak * 5.0) / 1023.0;
-  
-  // Prepare to send data to the shift register by setting the latch pin low
+  int peakToPeak = maxVal - minVal;
+
   digitalWrite(LatchPin, LOW);
- 
-  // Determine which LED pattern to display based on the voltage level
-  if(voltage > 2.4){ // Highest sound level
-   shiftOut(DataPin, ClockPin, LSBFIRST, LEDs7); // Send the LED pattern for the highest sound
-   digitalWrite(LatchPin, HIGH); // Latch the data to display the LEDs
-  }
-  else if(voltage > 2.1){ // Second highest sound level
-   shiftOut(DataPin, ClockPin, LSBFIRST, LEDs6); // Send the corresponding LED pattern
-   digitalWrite(LatchPin, HIGH); 
-  }  
-  else if(voltage > 1.8){ // Third highest sound level
-   shiftOut(DataPin, ClockPin, LSBFIRST, LEDs5); // Send the corresponding LED pattern
-   digitalWrite(LatchPin, HIGH); 
-  }  
-  else if(voltage > 1.5){ // Medium-high sound level
-   shiftOut(DataPin, ClockPin, LSBFIRST, LEDs4); // Send the corresponding LED pattern
-   digitalWrite(LatchPin, HIGH);     
-  }  
- else if(voltage > 1.2){ // Medium sound level
-   shiftOut(DataPin, ClockPin, LSBFIRST, LEDs3); // Send the corresponding LED pattern
-   digitalWrite(LatchPin, HIGH);    
- }  
- else if(voltage > 0.9){ // Low-medium sound level
-   shiftOut(DataPin, ClockPin, LSBFIRST, LEDs2); // Send the corresponding LED pattern
-   digitalWrite(LatchPin, HIGH); 
- }  
- else if(voltage > 0.6){ // Low sound level
-   shiftOut(DataPin, ClockPin, LSBFIRST, LEDs1); // Send the corresponding LED pattern
-   digitalWrite(LatchPin, HIGH); 
- }  
- else if(voltage > 0.0){ // Lowest sound level
-   shiftOut(DataPin, ClockPin, LSBFIRST, LEDs0); // Send the corresponding LED pattern
-   digitalWrite(LatchPin, HIGH); 
- }   
 
-  // Reset maxVal and minVal for the next set of samples
+  // Thresholds nu direct op peakToPeak, gebaseerd op je gemeten bereik (2-24)
+  if (peakToPeak > 18) {
+    shiftOut(DataPin, ClockPin, LSBFIRST, LEDs7);
+  }
+  else if (peakToPeak > 14) {
+    shiftOut(DataPin, ClockPin, LSBFIRST, LEDs6);
+  }
+  else if (peakToPeak > 10) {
+    shiftOut(DataPin, ClockPin, LSBFIRST, LEDs5);
+  }
+  else if (peakToPeak > 7) {
+    shiftOut(DataPin, ClockPin, LSBFIRST, LEDs4);
+  }
+  else if (peakToPeak > 5) {
+    shiftOut(DataPin, ClockPin, LSBFIRST, LEDs3);
+  }
+  else if (peakToPeak > 3) {
+    shiftOut(DataPin, ClockPin, LSBFIRST, LEDs2);
+  }
+  else if (peakToPeak > 2) {
+    shiftOut(DataPin, ClockPin, LSBFIRST, LEDs1);
+  }
+  else {
+    shiftOut(DataPin, ClockPin, LSBFIRST, LEDs0);
+  }
+  digitalWrite(LatchPin, HIGH);
+
   maxVal = 0;
   minVal = 1023;
+
+  // Geen spaties na de dubbele punt, en voltage weggehaald (voegde niks toe)
+  Serial.print(">");
+  Serial.print("peakToPeak:");
+  Serial.println(peakToPeak);
+
+  delay(100);
 }
