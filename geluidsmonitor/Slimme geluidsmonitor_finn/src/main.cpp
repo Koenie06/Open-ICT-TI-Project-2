@@ -41,13 +41,13 @@ void loop() {
   digitalWrite(LatchPin, LOW);
 
   // Thresholds nu direct op peakToPeak, gebaseerd op je gemeten bereik (2-24)
-  if (peakToPeak > 18) {
+  if (peakToPeak > 17) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs7);
   }
-  else if (peakToPeak > 14) {
+  else if (peakToPeak > 13) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs6);
   }
-  else if (peakToPeak > 10) {
+  else if (peakToPeak > 9) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs5);
   }
   else if (peakToPeak > 7) {
