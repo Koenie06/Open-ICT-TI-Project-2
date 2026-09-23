@@ -2,6 +2,7 @@
 
 const int micPin = A0; // Pin A0 is used for the microphone input
 
+int ButtPlus = 0;
 int sample; // Variable to store the current sound sample
 int maxVal = 0; // Variable to track the maximum sound level detected
 int minVal = 1023; // Variable to track the minimum sound level detected
@@ -10,6 +11,8 @@ int minVal = 1023; // Variable to track the minimum sound level detected
 int LatchPin = 3; // Pin 3 is connected to the LatchPin (ST_CP) of the 74HC595
 int ClockPin = 5; // Pin 5 is connected to the ClockPin (SH_CP) of the 74HC595
 int DataPin = 2; // Pin 2 is connected to the DataPin (DS) of the 74HC595
+int ButtPinIn = 7;
+int ButtPinOut = 8;
 
 // Binary patterns for the LEDs, representing different sound levels
 byte LEDs0 = 0b10000000; // LED pattern for the lowest sound level
@@ -26,6 +29,8 @@ void setup() {
   pinMode(ClockPin, OUTPUT);
   pinMode(DataPin, OUTPUT);
   pinMode(micPin, INPUT);
+  pinMode(ButtPinIn, INPUT);
+  pinMode(ButtPinOut, OUTPUT);
   Serial.begin(9600);
 }
 
@@ -40,26 +45,39 @@ void loop() {
 
   digitalWrite(LatchPin, LOW);
 
+  int ButtOn = digitalRead(ButtPinIn);
+  if ( (ButtOn == LOW) &&  (ButtPlus < 10)) {
+    ButtPlus = ButtPlus + 2;
+    digitalWrite(ButtPinOut, LOW);
+  }
+  else if ((ButtOn == LOW) && (ButtPlus == 10)) {
+    ButtPlus = 0;
+    digitalWrite(ButtPinOut, HIGH);
+  };
+  while (ButtOn == LOW) {
+  ButtOn = digitalRead(ButtPinIn);
+  Serial.print (ButtPlus);
+  }
   // Thresholds nu direct op peakToPeak, gebaseerd op je gemeten bereik (2-24)
-  if (peakToPeak > 17) {
+  if (peakToPeak > 17 + ButtPlus) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs7);
   }
-  else if (peakToPeak > 13) {
+  else if (peakToPeak > 13 + ButtPlus) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs6);
   }
-  else if (peakToPeak > 9) {
+  else if (peakToPeak > 9 + ButtPlus) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs5);
   }
-  else if (peakToPeak > 7) {
+  else if (peakToPeak > 7 + ButtPlus) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs4);
   }
-  else if (peakToPeak > 5) {
+  else if (peakToPeak > 5 + ButtPlus) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs3);
   }
-  else if (peakToPeak > 3) {
+  else if (peakToPeak > 3 + ButtPlus) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs2);
   }
-  else if (peakToPeak > 2) {
+  else if (peakToPeak > 2 + ButtPlus) {
     shiftOut(DataPin, ClockPin, LSBFIRST, LEDs1);
   }
   else {
